@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1, maximum-scale=1"
+>
+
+<title>
+  탄탄 출근체크
+</title>
+
+
+<style>
+
+body {
+
+  margin: 0;
+
+  padding: 40px 20px;
+
+  background: #f5f5f5;
+
+  font-family:
+    Arial,
+    sans-serif;
+
+  text-align:
+    center;
+
+}
+
+
+.box {
+
+  max-width:
+    420px;
+
+  margin:
+    0 auto;
+
+  padding:
+    30px;
+
+  background:
+    white;
+
+  border-radius:
+    16px;
+
+  box-sizing:
+    border-box;
+
+  box-shadow:
+    0 2px 12px
+    rgba(0,0,0,0.12);
+
+}
+
+
+h1 {
+
+  margin-top:
+    0;
+
+  margin-bottom:
+    30px;
+
+  font-size:
+    28px;
+
+}
+
+
+#loadingArea {
+
+  font-size:
+    20px;
+
+  line-height:
+    1.6;
+
+}
+
+
+#registerArea {
+
+  display:
+    none;
+
+}
+
+
+#message {
+
+  display:
+    none;
+
+  margin-top:
+    10px;
+
+  font-size:
+    22px;
+
+  line-height:
+    1.7;
+
+}
+
+
+.description {
+
+  margin-bottom:
+    20px;
+
+  color:
+    #666;
+
+  font-size:
+    15px;
+
+  line-height:
+    1.6;
+
+}
+
+
+select {
+
+  width:
+    100%;
+
+  padding:
+    15px;
+
+  margin-bottom:
+    20px;
+
+  box-sizing:
+    border-box;
+
+  font-size:
+    20px;
+
+}
+
+
+button {
+
+  width:
+    100%;
+
+  padding:
+    17px;
+
+  border:
+    0;
+
+  border-radius:
+    7px;
+
+  background:
+    #222;
+
+  color:
+    white;
+
+  box-sizing:
+    border-box;
+
+  cursor:
+    pointer;
+
+  font-size:
+    19px;
+
+  font-weight:
+    bold;
+
+}
+
+
+#changeEmployee {
+
+  display:
+    none;
+
+  margin-top:
+    35px;
+
+  color:
+    #888;
+
+  cursor:
+    pointer;
+
+  font-size:
+    13px;
+
+}
+
+
+#errorRetry {
+
+  display:
+    none;
+
+  margin-top:
+    25px;
+
+}
+
+
+#errorRetry button {
+
+  background:
+    #666;
+
+  font-size:
+    16px;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="box">
+
+
+<h1>
+  탄탄 출근체크
+</h1>
+
+
+
+<div id="loadingArea">
+  출근 확인 중...
+</div>
+
+
+
+<div id="registerArea">
+
+  <div class="description">
+
+    처음 한 번만<br>
+    본인의 이름을 선택해주세요.
+
+  </div>
+
+
+  <select id="employeeSelect">
+
+    <option value="">
+      이름 선택
+    </option>
+
+  </select>
+
+
+  <button
+    type="button"
+    onclick="registerEmployee()"
+  >
+    내 이름 등록
+  </button>
+
+</div>
+
+
+
+<div id="message">
+</div>
+
+
+
+<div
+  id="changeEmployee"
+  onclick="changeEmployee()"
+>
+  직원 변경
+</div>
+
+
+
+<div id="errorRetry">
+
+  <button
+    type="button"
+    onclick="location.reload()"
+  >
+    다시 시도
+  </button>
+
+</div>
+
+
+</div>
+
+
+
+<script>
+
+// ======================================================
+// 반드시 수정
+// Apps Script 웹앱 /exec 주소 입력
+// ======================================================
+
+const API_URL =
+  "https://script.google.com/macros/s/AKfycbx7IHdK91AHN7V586tYg69WZoNTQ_ENFG-jQzf6X4fo7YIwYxWaeMNh732xfJ5uMply/exec";
+
+
+
+// ======================================================
+// 이 브라우저에 저장할 직원정보 이름
+// ======================================================
+
+const STORAGE_KEY =
+  "tantan_employee_v2";
+
+
+
+// ======================================================
+// 페이지 시작
+// ======================================================
+
+window.addEventListener(
+  "load",
+  function() {
+
+    startAttendance();
+
+  }
+);
+
+
+
+// ======================================================
+// 시작
+// ======================================================
+
+function startAttendance() {
+
+  showLoading(
+    "출근 확인 중..."
+  );
+
+
+  const savedEmployee =
+    getSavedEmployee();
+
+
+  // 저장된 직원이 있다
+  if (savedEmployee) {
+
+    recordAttendance(
+      savedEmployee
+    );
+
+    return;
+
+  }
+
+
+  // 처음 방문한 휴대폰
+  loadEmployeeList();
+
+}
+
+
+
+// ======================================================
+// 저장된 직원 이름
+// ======================================================
+
+function getSavedEmployee() {
+
+  try {
+
+    return String(
+      localStorage.getItem(
+        STORAGE_KEY
+      ) || ""
+    ).trim();
+
+  }
+
+  catch (error) {
+
+    console.log(
+      error
+    );
+
+    return "";
+
+  }
+
+}
+
+
+
+// ======================================================
+// 직원정보 저장
+// ======================================================
+
+function saveEmployee(name) {
+
+  try {
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      name
+    );
+
+
+    // 바로 다시 읽어서 저장 확인
+    const saved =
+      localStorage.getItem(
+        STORAGE_KEY
+      );
+
+
+    return (
+      saved === name
+    );
+
+  }
+
+  catch (error) {
+
+    console.log(
+      "직원정보 저장 오류",
+      error
+    );
+
+
+    return false;
+
+  }
+
+}
+
+
+
+// ======================================================
+// 직원정보 삭제
+// ======================================================
+
+function clearEmployee() {
+
+  try {
+
+    localStorage.removeItem(
+      STORAGE_KEY
+    );
+
+  }
+
+  catch (error) {
+
+    console.log(
+      error
+    );
+
+  }
+
+}
+
+
+
+// ======================================================
+// 직원 목록 불러오기
+// ======================================================
+
+function loadEmployeeList() {
+
+  showLoading(
+    "직원정보 확인 중..."
+  );
+
+
+  jsonpRequest(
+
+    {
+      action:
+        "list"
+    },
+
+
+    function(result) {
+
+
+      if (
+        !result ||
+        !result.success
+      ) {
+
+        showError(
+          result &&
+          result.message
+            ? result.message
+            : "직원 목록을 불러오지 못했습니다."
+        );
+
+        return;
+
+      }
+
+
+      showEmployeeList(
+        result.employees
+      );
+
+    },
+
+
+    function() {
+
+      showError(
+        "직원 목록을 불러오지 못했습니다."
+      );
+
+    }
+
+  );
+
+}
+
+
+
+// ======================================================
+// 직원 목록 화면
+// ======================================================
+
+function showEmployeeList(
+  employees
+) {
+
+  hideAll();
+
+
+  const area =
+    document.getElementById(
+      "registerArea"
+    );
+
+
+  const select =
+    document.getElementById(
+      "employeeSelect"
+    );
+
+
+  select.innerHTML =
+    '<option value="">이름 선택</option>';
+
+
+  employees.forEach(
+    function(name) {
+
+
+      const option =
+        document.createElement(
+          "option"
+        );
+
+
+      option.value =
+        name;
+
+
+      option.textContent =
+        name;
+
+
+      select.appendChild(
+        option
+      );
+
+    }
+  );
+
+
+  area.style.display =
+    "block";
+
+}
+
+
+
+// ======================================================
+// 최초 직원 등록
+// ======================================================
+
+function registerEmployee() {
+
+  const select =
+    document.getElementById(
+      "employeeSelect"
+    );
+
+
+  const name =
+    String(
+      select.value || ""
+    ).trim();
+
+
+  if (!name) {
+
+    alert(
+      "본인의 이름을 선택해주세요."
+    );
+
+    return;
+
+  }
+
+
+
+  // 이름 확인
+  const answer =
+    confirm(
+      name +
+      "님이 맞습니까?\n\n" +
+      "등록 후에는 다음 출근부터 자동으로 인식됩니다."
+    );
+
+
+  if (!answer) {
+    return;
+  }
+
+
+
+  // 브라우저 저장
+  const saved =
+    saveEmployee(
+      name
+    );
+
+
+  if (!saved) {
+
+    alert(
+      "이 휴대폰에 직원정보를 저장하지 못했습니다.\n" +
+      "다시 시도해주세요."
+    );
+
+    return;
+
+  }
+
+
+
+  showLoading(
+    "출근 처리 중..."
+  );
+
+
+  recordAttendance(
+    name
+  );
+
+}
+
+
+
+// ======================================================
+// 출근처리
+// ======================================================
+
+function recordAttendance(
+  employeeName
+) {
+
+  showLoading(
+    "출근 확인 중..."
+  );
+
+
+  jsonpRequest(
+
+    {
+
+      action:
+        "record",
+
+      name:
+        employeeName
+
+    },
+
+
+    function(result) {
+
+      handleAttendanceResult(
+        result
+      );
+
+    },
+
+
+    function() {
+
+      showError(
+        "출근 서버에 연결하지 못했습니다."
+      );
+
+    }
+
+  );
+
+}
+
+
+
+// ======================================================
+// 출근 결과
+// ======================================================
+
+function handleAttendanceResult(
+  result
+) {
+
+
+  if (!result) {
+
+    showError(
+      "출근 처리 결과를 확인할 수 없습니다."
+    );
+
+    return;
+
+  }
+
+
+
+  // ==================================================
+  // 실패
+  // ==================================================
+
+  if (!result.success) {
+
+
+    // 직원이 퇴사/이름변경 등으로 사라진 경우
+    if (
+      result.employeeNotFound
+    ) {
+
+      clearEmployee();
+
+
+      alert(
+        "등록된 직원정보가 변경되었습니다.\n" +
+        "이름을 다시 선택해주세요."
+      );
+
+
+      loadEmployeeList();
+
+      return;
+
+    }
+
+
+    showError(
+      result.message ||
+      "출근 처리에 실패했습니다."
+    );
+
+
+    return;
+
+  }
+
+
+
+  // ==================================================
+  // 성공
+  // ==================================================
+
+  hideAll();
+
+
+  const message =
+    document.getElementById(
+      "message"
+    );
+
+
+  message.style.display =
+    "block";
+
+
+
+  // 이미 출근
+  if (
+    result.already
+  ) {
+
+    message.innerHTML =
+
+      "<b>" +
+      escapeHtml(
+        result.name
+      ) +
+      "님</b><br>" +
+
+      "오늘 이미 출근처리되었습니다.<br>" +
+
+      "<b>" +
+      escapeHtml(
+        result.time
+      ) +
+      "</b>";
+
+  }
+
+
+  // 새로운 출근
+  else {
+
+    message.innerHTML =
+
+      "<b>" +
+      escapeHtml(
+        result.name
+      ) +
+      "님</b><br>" +
+
+      "출근 완료<br>" +
+
+      "<b>" +
+      escapeHtml(
+        result.time
+      ) +
+      "</b>";
+
+  }
+
+
+
+  document
+    .getElementById(
+      "changeEmployee"
+    )
+    .style
+    .display =
+    "block";
+
+}
+
+
+
+// ======================================================
+// 직원 변경
+// ======================================================
+
+function changeEmployee() {
+
+  const answer =
+    confirm(
+      "이 휴대폰에 등록된 직원을 변경하시겠습니까?"
+    );
+
+
+  if (!answer) {
+    return;
+  }
+
+
+  clearEmployee();
+
+
+  loadEmployeeList();
+
+}
+
+
+
+// ======================================================
+// 로딩 표시
+// ======================================================
+
+function showLoading(
+  text
+) {
+
+  hideAll();
+
+
+  const loading =
+    document.getElementById(
+      "loadingArea"
+    );
+
+
+  loading.textContent =
+    text;
+
+
+  loading.style.display =
+    "block";
+
+}
+
+
+
+// ======================================================
+// 오류 표시
+// ======================================================
+
+function showError(
+  text
+) {
+
+  hideAll();
+
+
+  const message =
+    document.getElementById(
+      "message"
+    );
+
+
+  message.style.display =
+    "block";
+
+
+  message.innerHTML =
+
+    "⚠️ " +
+    escapeHtml(
+      text
+    );
+
+
+  document
+    .getElementById(
+      "errorRetry"
+    )
+    .style
+    .display =
+    "block";
+
+}
+
+
+
+// ======================================================
+// 모든 영역 숨김
+// ======================================================
+
+function hideAll() {
+
+  document
+    .getElementById(
+      "loadingArea"
+    )
+    .style
+    .display =
+    "none";
+
+
+  document
+    .getElementById(
+      "registerArea"
+    )
+    .style
+    .display =
+    "none";
+
+
+  document
+    .getElementById(
+      "message"
+    )
+    .style
+    .display =
+    "none";
+
+
+  document
+    .getElementById(
+      "changeEmployee"
+    )
+    .style
+    .display =
+    "none";
+
+
+  document
+    .getElementById(
+      "errorRetry"
+    )
+    .style
+    .display =
+    "none";
+
+}
+
+
+
+// ======================================================
+// 외부 Apps Script 호출
+//
+// script 태그 방식(JSONP)이므로
+// 브라우저 CORS 문제를 피한다.
+// ======================================================
+
+function jsonpRequest(
+  params,
+  success,
+  failure
+) {
+
+  const callbackName =
+    "tantanCallback_" +
+    Date.now() +
+    "_" +
+    Math.floor(
+      Math.random() *
+      1000000
+    );
+
+
+  let finished =
+    false;
+
+
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+
+  // ==================================================
+  // 정리 함수
+  // ==================================================
+
+  function cleanup() {
+
+    try {
+
+      if (
+        script.parentNode
+      ) {
+
+        script.parentNode.removeChild(
+          script
+        );
+
+      }
+
+    }
+
+    catch (error) {
+    }
+
+
+    try {
+
+      delete window[
+        callbackName
+      ];
+
+    }
+
+    catch (error) {
+
+      window[
+        callbackName
+      ] =
+        undefined;
+
+    }
+
+  }
+
+
+
+  // ==================================================
+  // 성공 callback
+  // ==================================================
+
+  window[
+    callbackName
+  ] =
+    function(data) {
+
+
+      if (finished) {
+        return;
+      }
+
+
+      finished =
+        true;
+
+
+      clearTimeout(
+        timeout
+      );
+
+
+      cleanup();
+
+
+      success(
+        data
+      );
+
+    };
+
+
+
+  // ==================================================
+  // URL 생성
+  // ==================================================
+
+  const query =
+    [];
+
+
+  Object.keys(
+    params
+  ).forEach(
+    function(key) {
+
+      query.push(
+
+        encodeURIComponent(
+          key
+        )
+        +
+        "="
+        +
+        encodeURIComponent(
+          params[key]
+        )
+
+      );
+
+    }
+  );
+
+
+  query.push(
+    "callback=" +
+    encodeURIComponent(
+      callbackName
+    )
+  );
+
+
+  query.push(
+    "_=" +
+    Date.now()
+  );
+
+
+
+  script.src =
+    API_URL +
+    "?" +
+    query.join("&");
+
+
+
+  // ==================================================
+  // 로딩 오류
+  // ==================================================
+
+  script.onerror =
+    function() {
+
+
+      if (finished) {
+        return;
+      }
+
+
+      finished =
+        true;
+
+
+      clearTimeout(
+        timeout
+      );
+
+
+      cleanup();
+
+
+      failure();
+
+    };
+
+
+
+  // ==================================================
+  // 15초 시간초과
+  // ==================================================
+
+  const timeout =
+    setTimeout(
+      function() {
+
+
+        if (finished) {
+          return;
+        }
+
+
+        finished =
+          true;
+
+
+        cleanup();
+
+
+        failure();
+
+      },
+
+      15000
+    );
+
+
+
+  document
+    .body
+    .appendChild(
+      script
+    );
+
+}
+
+
+
+// ======================================================
+// HTML 안전 처리
+// ======================================================
+
+function escapeHtml(
+  value
+) {
+
+  return String(
+    value == null
+      ? ""
+      : value
+  )
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+
+}
+
+</script>
+
+
+</body>
+
+</html>
