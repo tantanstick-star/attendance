@@ -695,26 +695,45 @@ function registerEmployee() {
 // 출근처리
 // ======================================================
 
-function recordAttendance(
-  employeeName
-) {
+function recordAttendance(employeeName) {
+  // 요청 전에 현재 화면을 사용한 것으로 표시합니다.
+  try {
+    const url = new URL(window.location.href);
 
-  showLoading(
-    "출근 확인 중..."
-  );
+    url.searchParams.set("attendance_used", "1");
 
+    history.replaceState(
+      history.state,
+      "",
+      url.toString()
+    );
+  } catch (error) {
+    showError(
+      "출근 화면을 확인하지 못했습니다. QR을 다시 찍어주세요."
+    );
+
+    document.getElementById("errorRetry").style.display = "none";
+    return;
+  }
+
+  showLoading("출근 확인 중...");
 
   jsonpRequest(
-
     {
-
-      action:
-        "record",
-
-      name:
-        employeeName
-
+      action: "record",
+      name: employeeName,
+      clientVersion: "qr-auto-v3"
     },
+
+    function(result) {
+      handleAttendanceResult(result);
+    },
+
+    function() {
+      showError("출근 서버에 연결하지 못했습니다.");
+    }
+  );
+}
 
 
     function(result) {
