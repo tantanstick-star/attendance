@@ -334,15 +334,30 @@ const STORAGE_KEY =
 // 페이지 시작
 // ======================================================
 
-window.addEventListener(
-  "load",
-  function() {
+window.addEventListener("load", function() {
+  const url = new URL(window.location.href);
+  const navigation = performance.getEntriesByType("navigation")[0];
 
-    startAttendance();
+  const isRestored = navigation && (
+    navigation.type === "reload" ||
+    navigation.type === "back_forward"
+  );
 
+  if (
+    url.searchParams.get("attendance_used") === "1" ||
+    isRestored ||
+    document.wasDiscarded === true
+  ) {
+    showError(
+      "이전에 열었던 출근 화면입니다. 출근하려면 QR을 다시 찍어주세요."
+    );
+
+    document.getElementById("errorRetry").style.display = "none";
+    return;
   }
-);
 
+  startAttendance();
+});
 
 
 // ======================================================
